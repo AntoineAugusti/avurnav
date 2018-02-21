@@ -1,6 +1,11 @@
 package avurnav
 
 import (
+	"bytes"
+	"encoding/json"
+	"github.com/yhat/scrape"
+	"golang.org/x/net/html"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -34,24 +39,33 @@ func (p AVURNAVPayload) AVURNAV(premar PremarInterface) AVURNAV {
 
 	from, to := p.matchDates(p.Dates)
 
-	return AVURNAV{
+	avurnav := AVURNAV{
 		ID:           p.parseInt(p.ID),
 		Number:       p.Number,
 		Title:        p.Title,
 		Latitude:     p.parseFloat(p.Latitude),
 		Longitude:    p.parseFloat(p.Longitude),
-		City:         &p.City,
 		URL:          premar.BaseURL().ResolveReference(relative).String(),
-		ValidFrom:    &from,
-		ValidTo:      &to,
 		PreMarRegion: premar.Region(),
 	}
+
+	if p.City != "" {
+		avurnav.City = &p.City
+	}
+	if from != "" {
+		avurnav.ValidFrom = &from
+	}
+	if to != "" {
+		avurnav.ValidTo = &to
+	}
+
+	return avurnav
 }
 
 func (p AVURNAVPayload) matchDates(str string) (from, to string) {
 	re := regexp.MustCompile(`^En vigueur du : (\d{2}\/\d{2}\/\d{4}|Indéterminé) au (\d{2}\/\d{2}\/\d{4}|Indéterminé)$`)
 	matches := re.FindStringSubmatch(str)
-	return p.cleanDate(matches[0]), p.cleanDate(matches[1])
+	return p.cleanDate(matches[1]), p.cleanDate(matches[2])
 }
 
 func (p AVURNAVPayload) cleanDate(str string) string {
@@ -82,6 +96,7 @@ type AVURNAV struct {
 	ID           int     `json:"id"`
 	Number       string  `json:"number"`
 	Title        string  `json:"title"`
+	Content      string  `json:"content"`
 	Latitude     float32 `json:"latitude"`
 	Longitude    float32 `json:"longitude"`
 	City         *string `json:"city"`
@@ -89,6 +104,35 @@ type AVURNAV struct {
 	ValidFrom    *string `json:"valid_from"`
 	ValidTo      *string `json:"valid_to"`
 	PreMarRegion string  `json:"premar_region"`
+}
+
+func (a AVURNAV) ParseContent(reader io.Reader) AVURNAV {
+	root, err := html.Parse(reader)
+	if err != nil {
+		panic(err)
+	}
+	blocks := scrape.FindAll(root, scrape.ByClass("block-subcontenu"))
+	content := scrape.Text(blocks[2])
+	a.Content = content
+	return a
+}
+
+func (a AVURNAV) JSON() string {
+	res, err := json.Marshal(a)
+	if err != nil {
+		panic(err)
+	}
+	return string(res)
+}
+
+// MarshalBinary marshals the object
+func (a AVURNAV) MarshalBinary() ([]byte, error) {
+	return json.Marshal(a)
+}
+
+// UnmarshalBinary unmarshals the object
+func (a AVURNAV) UnmarshalBinary(data []byte) error {
+	return json.Unmarshal(data, &a)
 }
 
 // AVURNAVs represents multiple AVURNAV
@@ -127,4 +171,24 @@ func (f *AVURNAVFetcher) List() (AVURNAVs, *http.Response, error) {
 	}
 
 	return payloads.AVURNAVs(f.service), response, err
+}
+
+func (f *AVURNAVFetcher) Get(a AVURNAV) (AVURNAV, *http.Response, error) {
+	url, err := url.Parse(a.URL)
+	if err != nil {
+		return AVURNAV{}, nil, err
+	}
+
+	req, err := f.service.Client().NewRequest("GET", url, nil)
+	if err != nil {
+		return AVURNAV{}, nil, err
+	}
+
+	var buf bytes.Buffer
+	response, err := f.service.Client().Do(req, &buf)
+	if err != nil {
+		return AVURNAV{}, response, err
+	}
+
+	return a.ParseContent(&buf), response, err
 }
