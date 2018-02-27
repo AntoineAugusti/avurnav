@@ -3,13 +3,18 @@ package avurnav
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/yhat/scrape"
-	"golang.org/x/net/html"
 	"io"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
+
+	"github.com/yhat/scrape"
+	"golang.org/x/net/html"
+)
+
+const (
+	AVURNAV_CATEGORY_ID = 12
 )
 
 // AVURNAVFetcher fetches AVURNAVs on the Préfet
@@ -118,7 +123,7 @@ func (a AVURNAV) ParseContent(reader io.Reader) AVURNAV {
 }
 
 func (a AVURNAV) JSON() string {
-	res, err := json.Marshal(a)
+	res, err := a.MarshalBinary()
 	if err != nil {
 		panic(err)
 	}
@@ -157,12 +162,16 @@ func (f *AVURNAVFetcher) List() (AVURNAVs, *http.Response, error) {
 		return nil, nil, err
 	}
 
-	url := f.service.BaseURL().ResolveReference(relative)
+	theURL := f.service.BaseURL().ResolveReference(relative)
 
-	req, err := f.service.Client().NewRequest("GET", url, nil)
+	body := url.Values{}
+	body.Add("id_categorie", strconv.Itoa(AVURNAV_CATEGORY_ID))
+
+	req, err := f.service.Client().NewRequest("POST", theURL, body)
 	if err != nil {
 		return nil, nil, err
 	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	var payloads AVURNAVPayloads
 	response, err := f.service.Client().Do(req, &payloads)
