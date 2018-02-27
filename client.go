@@ -41,6 +41,8 @@ type Client struct {
 	Manche       AVURNAVFetcher
 	Atlantique   AVURNAVFetcher
 	Mediterranee AVURNAVFetcher
+
+	Fetchers []AVURNAVFetcher
 }
 
 // NewClient returns a new API client
@@ -73,21 +75,26 @@ func NewClient(httpClient *http.Client) *Client {
 			region:  "Méditerranée",
 		}}
 
+	c.Fetchers = []AVURNAVFetcher{c.Manche, c.Atlantique, c.Mediterranee}
+
 	return c
 }
 
 // NewRequest creates an API request to a given URL.
 // If specified, the value pointed to by body is JSON encoded and included in as the request body.
-func (c *Client) NewRequest(method string, url *url.URL, body interface{}) (*http.Request, error) {
+func (c *Client) NewRequest(method string, theURL *url.URL, body interface{}) (*http.Request, error) {
 	buf := new(bytes.Buffer)
 	if body != nil {
-		err := json.NewEncoder(buf).Encode(body)
-		if err != nil {
-			return nil, err
+		if w, ok := body.(url.Values); ok {
+			buf = bytes.NewBufferString(w.Encode())
+		} else {
+			if err := json.NewEncoder(buf).Encode(body); err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	req, err := http.NewRequest(method, url.String(), buf)
+	req, err := http.NewRequest(method, theURL.String(), buf)
 	if err != nil {
 		return nil, err
 	}
