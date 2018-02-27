@@ -1,9 +1,12 @@
 package avurnav
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/go-redis/redis"
 	"strconv"
+	"strings"
+
+	"github.com/go-redis/redis"
 )
 
 type Storage struct {
@@ -14,10 +17,36 @@ func NewStorage(client *redis.Client) Storage {
 	return Storage{redis: client}
 }
 
-func (s *Storage) Set(a AVURNAV) error {
+func (s *Storage) AVURNAVsForRegion(region string) AVURNAVs {
+	avurnavs := make(AVURNAVs, 0)
+
+	ids := s.redis.SMembers(region).Val()
+	if len(ids) == 0 {
+		return avurnavs
+	}
+
+	values := s.redis.MGet(ids...).Val()
+	for _, value := range values {
+		var item AVURNAV
+		if str, ok := value.(string); ok {
+			json.Unmarshal([]byte(str), &item)
+		}
+		avurnavs = append(avurnavs, item)
+	}
+
+	return avurnavs
+}
+
+func (s *Storage) RegisterAVURNAVs(avurnavs AVURNAVs) error {
 	pipe := s.redis.Pipeline()
-	pipe.Set(s.key(a), a, 0).Err()
-	pipe.SAdd(a.PreMarRegion, s.key(a))
+
+	pipe.Del(s.region(avurnavs[0]))
+
+	for _, avurnav := range avurnavs {
+		pipe.Set(s.key(avurnav), avurnav, 0).Err()
+		pipe.SAdd(s.region(avurnav), s.key(avurnav))
+	}
+
 	_, err := pipe.Exec()
 	return err
 }
@@ -27,6 +56,10 @@ func (s *Storage) Get(a AVURNAV) (AVURNAV, error) {
 	return a, err
 }
 
+func (s *Storage) region(a AVURNAV) string {
+	return strings.ToLower(a.PreMarRegion)
+}
+
 func (s *Storage) key(a AVURNAV) string {
-	return fmt.Sprintf("%s:%s", a.PreMarRegion, strconv.Itoa(a.ID))
+	return fmt.Sprintf("%s:%s", strings.ToLower(a.PreMarRegion), strconv.Itoa(a.ID))
 }
