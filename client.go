@@ -31,7 +31,7 @@ func (r *ErrorResponse) Error() string {
 		r.Response.Request.Method, r.Response.Request.URL, r.Response.StatusCode, r.Message)
 }
 
-// Client manages communication the API
+// Client manages communication with the API
 type Client struct {
 	// HTTP client used to communicate with the API
 	client *http.Client
@@ -42,7 +42,7 @@ type Client struct {
 	Atlantique   AVURNAVFetcher
 	Mediterranee AVURNAVFetcher
 
-	Fetchers []AVURNAVFetcher
+	Fetchers []*AVURNAVFetcher
 }
 
 // NewClient returns a new API client
@@ -75,7 +75,7 @@ func NewClient(httpClient *http.Client) *Client {
 			region:  "Méditerranée",
 		}}
 
-	c.Fetchers = []AVURNAVFetcher{c.Manche, c.Atlantique, c.Mediterranee}
+	c.Fetchers = []*AVURNAVFetcher{&c.Manche, &c.Atlantique, &c.Mediterranee}
 
 	return c
 }

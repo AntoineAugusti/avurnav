@@ -31,7 +31,10 @@ func (s PremarService) Client() *Client {
 
 // BaseURL returns the base URL of the website
 func (s PremarService) BaseURL() *url.URL {
-	url, _ := url.Parse(s.baseURL)
+	url, err := url.Parse(s.baseURL)
+	if err != nil {
+		panic(err)
+	}
 	return url
 }
 

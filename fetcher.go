@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/yhat/scrape"
@@ -48,7 +49,7 @@ func (p AVURNAVPayload) AVURNAV(premar PremarInterface) AVURNAV {
 	avurnav := AVURNAV{
 		ID:           p.parseInt(p.ID),
 		Number:       p.Number,
-		Title:        p.Title,
+		Title:        strings.TrimSpace(p.Title),
 		Latitude:     p.parseFloat(p.Latitude),
 		Longitude:    p.parseFloat(p.Longitude),
 		URL:          premar.BaseURL().ResolveReference(relative).String(),
