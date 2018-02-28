@@ -38,6 +38,9 @@ func (s *Storage) AVURNAVsForRegion(region string) AVURNAVs {
 }
 
 func (s *Storage) RegisterAVURNAVs(avurnavs AVURNAVs) error {
+	if len(avurnavs) == 0 {
+		return nil
+	}
 	pipe := s.redis.Pipeline()
 
 	pipe.Del(s.region(avurnavs[0]))
