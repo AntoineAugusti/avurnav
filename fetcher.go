@@ -136,7 +136,7 @@ func (a AVURNAV) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary unmarshals the object
-func (a AVURNAV) UnmarshalBinary(data []byte) error {
+func (a *AVURNAV) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, &a)
 }
 

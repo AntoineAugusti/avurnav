@@ -1,7 +1,6 @@
 package avurnav
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -29,7 +28,7 @@ func (s *Storage) AVURNAVsForRegion(region string) AVURNAVs {
 	for _, value := range values {
 		var item AVURNAV
 		if str, ok := value.(string); ok {
-			json.Unmarshal([]byte(str), &item)
+			item.UnmarshalBinary([]byte(str))
 		}
 		avurnavs = append(avurnavs, item)
 	}
