@@ -63,7 +63,7 @@ func (p AVURNAVPayload) AVURNAV(premar PremarInterface) AVURNAV {
 		avurnav.ValidFrom = &from
 	}
 	if to != "" {
-		avurnav.ValidTo = &to
+		avurnav.ValidUntil = &to
 	}
 
 	return avurnav
@@ -110,7 +110,7 @@ type AVURNAV struct {
 	City         *string `json:"city"`
 	URL          string  `json:"url"`
 	ValidFrom    *string `json:"valid_from"`
-	ValidTo      *string `json:"valid_to"`
+	ValidUntil   *string `json:"valid_until"`
 	PreMarRegion string  `json:"premar_region"`
 }
 
