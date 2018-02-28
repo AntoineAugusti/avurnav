@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/yhat/scrape"
 	"golang.org/x/net/html"
@@ -77,7 +78,8 @@ func (p AVURNAVPayload) cleanDate(str string) string {
 	if str == "Indéterminé" {
 		return ""
 	}
-	return str
+	t, _ := time.Parse("02/01/2006", str)
+	return t.Format("2006-01-02")
 }
 
 func (p AVURNAVPayload) parseFloat(str string) float32 {
