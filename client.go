@@ -16,12 +16,12 @@ const (
 	mediaType      = "application/json"
 )
 
-// An ErrorResponse reports the error caused by an API request
+// ErrorResponse reports the error caused by an API request
 type ErrorResponse struct {
-	// HTTP response that caused this error
+	// Response is the HTTP response that caused this error
 	Response *http.Response
 
-	// Error message
+	// Message is the error message
 	Message string
 }
 

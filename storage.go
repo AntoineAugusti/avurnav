@@ -8,14 +8,17 @@ import (
 	"github.com/go-redis/redis"
 )
 
+// Storage stores AVURNAVs in Redis
 type Storage struct {
 	redis *redis.Client
 }
 
+// NewStorage constructs a new Storage from a Redis client
 func NewStorage(client *redis.Client) Storage {
 	return Storage{redis: client}
 }
 
+// AVURNAVsForRegion lists AVURNAVs for a specific Préfet Maritime region
 func (s *Storage) AVURNAVsForRegion(region string) AVURNAVs {
 	avurnavs := make(AVURNAVs, 0)
 
@@ -36,6 +39,7 @@ func (s *Storage) AVURNAVsForRegion(region string) AVURNAVs {
 	return avurnavs
 }
 
+// RegisterAVURNAVs stores AVURNAVs in storage
 func (s *Storage) RegisterAVURNAVs(avurnavs AVURNAVs) error {
 	if len(avurnavs) == 0 {
 		return nil
@@ -53,6 +57,7 @@ func (s *Storage) RegisterAVURNAVs(avurnavs AVURNAVs) error {
 	return err
 }
 
+// Get gets a single AVURNAV from storage
 func (s *Storage) Get(a AVURNAV) (AVURNAV, error) {
 	err := s.redis.Get(s.key(a)).Scan(&a)
 	return a, err

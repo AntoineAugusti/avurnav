@@ -16,7 +16,9 @@ import (
 )
 
 const (
-	AVURNAV_CATEGORY_ID = 12
+	// AVURNAVCategoryID is the category ID for AVURNAVs on the Préfet Maritime
+	// websites
+	AVURNAVCategoryID = 12
 )
 
 // AVURNAVFetcher fetches AVURNAVs on the Préfet
@@ -25,7 +27,8 @@ type AVURNAVFetcher struct {
 	service PremarInterface
 }
 
-// AVURNAVPayload
+// AVURNAVPayload is used to decode AVURNAVs from
+// the Préfet Maritime websites
 type AVURNAVPayload struct {
 	ID        string `json:"id_centre"`
 	Number    string `json:"numero"`
@@ -98,18 +101,33 @@ func (p AVURNAVPayload) parseInt(str string) int {
 
 // AVURNAV represents an AVURNAV
 type AVURNAV struct {
-	ID           int     `json:"id"`
-	Number       string  `json:"number"`
-	Title        string  `json:"title"`
-	Content      string  `json:"content"`
-	Latitude     float32 `json:"latitude"`
-	Longitude    float32 `json:"longitude"`
-	URL          string  `json:"url"`
-	ValidFrom    *string `json:"valid_from"`
-	ValidUntil   *string `json:"valid_until"`
-	PreMarRegion string  `json:"premar_region"`
+	// ID is the a technical unique number
+	ID int `json:"id"`
+	// Number is the number of the AVURNAV. This is the main public identifier
+	Number string `json:"number"`
+	// Title is the title of the AVURNAV
+	Title string `json:"title"`
+	// Content is the content of the AVURNAV
+	Content string `json:"content"`
+	// Latitude gives an indication about the localisation of the AVURNAV.
+	// It's not super reliable for now because AVURNAVs can spawn multiple
+	// geographical regions but for now Préfet Maritimes only give a single point.
+	Latitude float32 `json:"latitude"`
+	// Longitude gives an indication about the localisation of the AVURNAV.
+	// It's not super reliable for now because AVURNAVs can spawn multiple
+	// geographical regions but for now Préfet Maritimes only give a single point.
+	Longitude float32 `json:"longitude"`
+	// URL gives a full URL to a Préfet Maritime website concerning this specific AVURNAV
+	URL string `json:"url"`
+	// ValidFrom tells when the AVURNAV will be in force. Format: YYYY-MM-DD
+	ValidFrom *string `json:"valid_from"`
+	// ValidUntil tells when the AVURNAV will not be valid anymore. Format: YYYY-MM-DD
+	ValidUntil *string `json:"valid_until"`
+	// PreMarRegion gives the region under the authority of this Préfet Maritime
+	PreMarRegion string `json:"premar_region"`
 }
 
+// ParseContent fills the content section of an AVURNAV and returns a new one
 func (a AVURNAV) ParseContent(reader io.Reader) AVURNAV {
 	root, err := html.Parse(reader)
 	if err != nil {
@@ -121,6 +139,7 @@ func (a AVURNAV) ParseContent(reader io.Reader) AVURNAV {
 	return a
 }
 
+// JSON gets the JSON representation of an AVURNAV
 func (a AVURNAV) JSON() string {
 	res, err := a.MarshalBinary()
 	if err != nil {
@@ -164,7 +183,7 @@ func (f *AVURNAVFetcher) List() (AVURNAVs, *http.Response, error) {
 	theURL := f.service.BaseURL().ResolveReference(relative)
 
 	body := url.Values{}
-	body.Add("id_categorie", strconv.Itoa(AVURNAV_CATEGORY_ID))
+	body.Add("id_categorie", strconv.Itoa(AVURNAVCategoryID))
 
 	req, err := f.service.Client().NewRequest("POST", theURL, body)
 	if err != nil {
@@ -181,6 +200,7 @@ func (f *AVURNAVFetcher) List() (AVURNAVs, *http.Response, error) {
 	return payloads.AVURNAVs(f.service), response, err
 }
 
+// Get fetches the content of an AVURNAV from the web and returns it
 func (f *AVURNAVFetcher) Get(a AVURNAV) (AVURNAV, *http.Response, error) {
 	url, err := url.Parse(a.URL)
 	if err != nil {
