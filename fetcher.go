@@ -56,9 +56,6 @@ func (p AVURNAVPayload) AVURNAV(premar PremarInterface) AVURNAV {
 		PreMarRegion: premar.Region(),
 	}
 
-	if p.City != "" {
-		avurnav.City = &p.City
-	}
 	if from != "" {
 		avurnav.ValidFrom = &from
 	}
@@ -107,7 +104,6 @@ type AVURNAV struct {
 	Content      string  `json:"content"`
 	Latitude     float32 `json:"latitude"`
 	Longitude    float32 `json:"longitude"`
-	City         *string `json:"city"`
 	URL          string  `json:"url"`
 	ValidFrom    *string `json:"valid_from"`
 	ValidUntil   *string `json:"valid_until"`
