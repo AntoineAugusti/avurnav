@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	libraryVersion = "0.1"
+	libraryVersion = "0.2"
 	userAgent      = "Go AVURNAV v" + libraryVersion
 	mediaType      = "application/json"
 )

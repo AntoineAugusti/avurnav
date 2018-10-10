@@ -2,7 +2,6 @@ package avurnav
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/go-redis/redis"
@@ -68,5 +67,5 @@ func (s *Storage) region(a AVURNAV) string {
 }
 
 func (s *Storage) key(a AVURNAV) string {
-	return fmt.Sprintf("%s:%s", strings.ToLower(a.PreMarRegion), strconv.Itoa(a.ID))
+	return fmt.Sprintf("%s:%s", strings.ToLower(a.PreMarRegion), a.Number)
 }

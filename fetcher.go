@@ -6,19 +6,16 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/yhat/scrape"
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 const (
-	// AVURNAVCategoryID is the category ID for AVURNAVs on the Préfet Maritime
-	// websites
-	AVURNAVCategoryID = 12
+	BASE_PREMAR = "https://premar.antoine-augusti.fr"
 )
 
 // AVURNAVFetcher fetches AVURNAVs on the Préfet
@@ -30,32 +27,24 @@ type AVURNAVFetcher struct {
 // AVURNAVPayload is used to decode AVURNAVs from
 // the Préfet Maritime websites
 type AVURNAVPayload struct {
-	ID        string `json:"id_centre"`
-	Number    string `json:"numero"`
-	Title     string `json:"label"`
-	Latitude  string `json:"latitude"`
-	Longitude string `json:"longitude"`
-	City      string `json:"localite"`
-	URL       string `json:"url"`
-	Dates     string `json:"dates"`
+	Title      string  `json:"title"`
+	ValidFrom  string  `json:"valid_from"`
+	ValidUntil string  `json:"valid_until"`
+	Latitude   float32 `json:"latitude"`
+	Longitude  float32 `json:"longitude"`
+	URL        string  `json:"url"`
 }
 
 // AVURNAV transforms a payload to a proper AVURNAV
 func (p AVURNAVPayload) AVURNAV(premar PremarInterface) AVURNAV {
-	relative, err := url.Parse(p.URL)
-	if err != nil {
-		panic(err)
-	}
-
-	from, to := p.matchDates(p.Dates)
+	from, to := p.ValidFrom, p.ValidUntil
 
 	avurnav := AVURNAV{
-		ID:           p.parseInt(p.ID),
-		Number:       p.Number,
+		Number:       p.extractNumber(p.Title),
 		Title:        strings.TrimSpace(p.Title),
-		Latitude:     p.parseFloat(p.Latitude),
-		Longitude:    p.parseFloat(p.Longitude),
-		URL:          premar.BaseURL().ResolveReference(relative).String(),
+		Latitude:     p.Latitude,
+		Longitude:    p.Longitude,
+		URL:          p.URL,
 		PreMarRegion: premar.Region(),
 	}
 
@@ -69,26 +58,11 @@ func (p AVURNAVPayload) AVURNAV(premar PremarInterface) AVURNAV {
 	return avurnav
 }
 
-func (p AVURNAVPayload) matchDates(str string) (from, to string) {
-	re := regexp.MustCompile(`^En vigueur du : (\d{2}\/\d{2}\/\d{4}|Indéterminé) au (\d{2}\/\d{2}\/\d{4}|Indéterminé)$`)
-	matches := re.FindStringSubmatch(str)
-	return p.cleanDate(matches[1]), p.cleanDate(matches[2])
-}
-
-func (p AVURNAVPayload) cleanDate(str string) string {
-	if str == "Indéterminé" {
-		return ""
-	}
-	t, _ := time.Parse("02/01/2006", str)
-	return t.Format("2006-01-02")
-}
-
-func (p AVURNAVPayload) parseFloat(str string) float32 {
-	s, err := strconv.ParseFloat(str, 32)
-	if err != nil {
-		panic(err)
-	}
-	return float32(s)
+func (p AVURNAVPayload) extractNumber(title string) string {
+	// From: ACTIVITE MILITAIRE - TIRS (n°753/18)
+	// To: 753/18
+	res := strings.Split(title, "n°")[1]
+	return strings.Replace(res, ")", "", -1)
 }
 
 func (p AVURNAVPayload) parseInt(str string) int {
@@ -101,8 +75,6 @@ func (p AVURNAVPayload) parseInt(str string) int {
 
 // AVURNAV represents an AVURNAV
 type AVURNAV struct {
-	// ID is the a technical unique number
-	ID int `json:"id"`
 	// Number is the number of the AVURNAV. This is the main public identifier
 	Number string `json:"number"`
 	// Title is the title of the AVURNAV
@@ -133,9 +105,9 @@ func (a AVURNAV) ParseContent(reader io.Reader) AVURNAV {
 	if err != nil {
 		panic(err)
 	}
-	blocks := scrape.FindAll(root, scrape.ByClass("block-subcontenu"))
-	content := scrape.Text(blocks[2])
-	a.Content = content
+	blocks := scrape.FindAllNested(root, scrape.ByClass("rubrique"))
+	divs := scrape.FindAllNested(blocks[0], scrape.ByTag(atom.Div))
+	a.Content = scrape.Text(divs[3])
 	return a
 }
 
@@ -162,7 +134,7 @@ func (a *AVURNAV) UnmarshalBinary(data []byte) error {
 type AVURNAVs []AVURNAV
 
 // AVURNAVPayloads represents multiple AVRUNAV payloads
-type AVURNAVPayloads map[string]AVURNAVPayload
+type AVURNAVPayloads []AVURNAVPayload
 
 // AVURNAVs transforms payloads to AVURNAVs
 func (p AVURNAVPayloads) AVURNAVs(premar PremarInterface) AVURNAVs {
@@ -175,21 +147,18 @@ func (p AVURNAVPayloads) AVURNAVs(premar PremarInterface) AVURNAVs {
 
 // List lists AVURNAVs that are currently available
 func (f *AVURNAVFetcher) List() (AVURNAVs, *http.Response, error) {
-	relative, err := url.Parse("avis-urgents-aux-navigateurs.html?frame=maps.php")
+	relative, err := url.Parse("?region=" + strings.ToLower(f.service.Region()))
 	if err != nil {
 		return nil, nil, err
 	}
+	base, _ := url.Parse(BASE_PREMAR)
 
-	theURL := f.service.BaseURL().ResolveReference(relative)
+	theURL := base.ResolveReference(relative)
 
-	body := url.Values{}
-	body.Add("id_categorie", strconv.Itoa(AVURNAVCategoryID))
-
-	req, err := f.service.Client().NewRequest("POST", theURL, body)
+	req, err := f.service.Client().NewRequest("GET", theURL, nil)
 	if err != nil {
 		return nil, nil, err
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	var payloads AVURNAVPayloads
 	response, err := f.service.Client().Do(req, &payloads)
