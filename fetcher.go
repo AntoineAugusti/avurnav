@@ -105,8 +105,8 @@ func (a AVURNAV) ParseContent(reader io.Reader) AVURNAV {
 	if err != nil {
 		panic(err)
 	}
-	blocks := scrape.FindAllNested(root, scrape.ByClass("rubrique"))
-	divs := scrape.FindAllNested(blocks[0], scrape.ByTag(atom.Div))
+	blocks := scrape.FindAllNested(root, scrape.ByClass("col-12"))
+	divs := scrape.FindAllNested(blocks[1], scrape.ByTag(atom.Div))
 	a.Content = scrape.Text(divs[3])
 	return a
 }
