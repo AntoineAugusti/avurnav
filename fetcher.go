@@ -33,6 +33,7 @@ type AVURNAVPayload struct {
 	Latitude   float32 `json:"latitude"`
 	Longitude  float32 `json:"longitude"`
 	URL        string  `json:"url"`
+	Number     string  `json:"number"`
 }
 
 // AVURNAV transforms a payload to a proper AVURNAV
@@ -40,7 +41,7 @@ func (p AVURNAVPayload) AVURNAV(premar PremarInterface) AVURNAV {
 	from, to := p.ValidFrom, p.ValidUntil
 
 	avurnav := AVURNAV{
-		Number:       p.extractNumber(p.Title),
+		Number:       p.Number,
 		Title:        strings.TrimSpace(p.Title),
 		Latitude:     p.Latitude,
 		Longitude:    p.Longitude,
@@ -56,13 +57,6 @@ func (p AVURNAVPayload) AVURNAV(premar PremarInterface) AVURNAV {
 	}
 
 	return avurnav
-}
-
-func (p AVURNAVPayload) extractNumber(title string) string {
-	// From: ACTIVITE MILITAIRE - TIRS (n°753/18)
-	// To: 753/18
-	res := strings.Split(title, "n°")[1]
-	return strings.Replace(res, ")", "", -1)
 }
 
 func (p AVURNAVPayload) parseInt(str string) int {
